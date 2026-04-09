@@ -1,0 +1,1 @@
+Dummy file to ensure directory existence. You can delete this once you place college_bg.jpg here.

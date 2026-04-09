@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>College Connect</title>
+    {% load static %}
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}?v=18">
+    <!-- Prevent theme flashing on load -->
+    <script>
+        if (localStorage.getItem('theme') === 'dark') {
+            document.documentElement.setAttribute('data-theme', 'dark');
+        }
+    </script>
+</head>
+<body>
+    <div id="global-loader">
+        <div class="spinner"></div>
+    </div>
+
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="/" class="brand" style="display: flex; align-items: center; gap: 10px;">
+                <img src="{% static 'images/logo.png' %}" alt="Logo" style="height: 35px; border-radius: 4px;"> 
+                College Connect
+            </a>
+            <div class="nav-links">
+                <button id="theme-toggle" class="theme-toggle" title="Toggle Dark/Light Mode">🌙</button>
+                {% if request.session.teacher_id or request.session.student_id %}
+                    <div class="user-profile">
+                        <div class="user-avatar" title="{{ request.session.name }}">
+                            {% if teacher %}
+                                {{ teacher.name|slice:":1"|upper }}
+                            {% elif student %}
+                                {{ student.name|slice:":1"|upper }}
+                            {% else %}
+                                👤
+                            {% endif %}
+                        </div>
+                        <a href="{% url 'logout' %}" class="btn-logout">Logout</a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+    <script src="{% static 'js/script.js' %}?v=18"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

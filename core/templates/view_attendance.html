@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="dashboard-header">
+    <div class="header-info">
+        <h1>Attendance Report</h1>
+        <p>Overall attendance statistics for all students.</p>
+    </div>
+    <div class="header-actions">
+        <a href="{% url 'teacher_dashboard' %}" class="btn-secondary"
+            style="text-decoration: none; padding: 10px 15px; border-radius: 8px; background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3);">←
+            Back</a>
+    </div>
+</div>
+
+<div class="dashboard-grid">
+    <div class="classes-section">
+        <h3>Cumulative Student Attendance</h3>
+        <table style="width: 100%; border-collapse: collapse; margin-top: 20px; color: #1c2740; text-align: left;">
+            <thead>
+                <tr style="border-bottom: 2px solid rgba(0,0,0,0.1);">
+                    <th style="padding: 12px; font-size: 14px; color: #4b5563;">Roll Number</th>
+                    <th style="padding: 12px; font-size: 14px; color: #4b5563;">Name</th>
+                    <th style="padding: 12px; font-size: 14px; color: #4b5563;">Section</th>
+                    <th style="padding: 12px; font-size: 14px; color: #4b5563;">Classes Attended</th>
+                    <th style="padding: 12px; font-size: 14px; color: #4b5563;">Total Conducted</th>
+                    <th style="padding: 12px; font-size: 14px; color: #4b5563;">Percentage</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in report_data %}
+                <tr style="border-bottom: 1px solid rgba(0,0,0,0.05); background: rgba(0,0,0,0.02);">
+                    <td style="padding: 12px;">{{ row.student.roll_number }}</td>
+                    <td style="padding: 12px;">{{ row.student.name }}</td>
+                    <td style="padding: 12px;">Sec {{ row.student.section }}</td>
+                    <td style="padding: 12px; color: #4ade80; font-weight: bold;">{{ row.attended }}</td>
+                    <td style="padding: 12px;">{{ row.total }}</td>
+                    <td style="padding: 12px;">
+                        {% if row.total > 0 %}
+                        {% widthratio row.attended row.total 100 %}%
+                        {% else %}
+                        N/A
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+                {% if not report_data %}
+                <tr>
+                    <td colspan="6" style="padding: 20px; text-align: center; color: #6b7280;">No student data
+                        available.</td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,31 @@
+ {% extends 'base.html' %}
+
+{% block content %}
+<div class="login-wrapper">
+    <div class="login-card">
+        <a href="{% url 'index' %}" style="color: white; text-decoration: none; font-size: 14px; opacity: 0.7; margin-bottom: 10px; display: inline-block;">← Back to Home</a>
+        <h2>Teacher Login</h2>
+        <p class="subtitle">Access your dashboard to manage classes</p>
+        
+        {% if error %}
+            <div class="error-msg" style="color: #ff6b6b; margin-bottom: 15px; background: rgba(255,107,107,0.1); padding: 10px; border-radius: 5px;">{{ error }}</div>
+        {% endif %}
+        
+        <form method="post" class="login-form">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="teacher_id">Teacher ID</label>
+                <input type="text" name="teacher_id" id="teacher_id" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Password (Leave blank if first login)</label>
+                <input type="password" name="password" id="password">
+                <div style="text-align: right; margin-top: 5px;">
+                    <a href="{% url 'forgot_password' %}" style="color: #3498db; font-size: 12px; text-decoration: none;">Forgot Password?</a>
+                </div>
+            </div>
+            <button type="submit" class="btn-primary btn-block">Sign In</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

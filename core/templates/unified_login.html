@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="unified-login-wrapper">
+    <div class="login-hero-text" style="font-family: 'Century', 'Century Gothic', serif; z-index: 2;">
+        <h1 style="font-size: 2.4rem; margin-bottom: 15px; font-weight: 700; color: #ffffff; line-height: 1.2; letter-spacing: 0px; text-shadow: 0 4px 15px rgba(0,0,0,0.8), 0 2px 5px rgba(0,0,0,0.9);">
+            Welcome to IIPS<br>College Connect!
+        </h1>
+        <p style="font-size: 1.2rem; color: #f8fafc; font-weight: 400; line-height: 1.8; opacity: 0.95; letter-spacing: 0.5px; text-shadow: 0 3px 10px rgba(0,0,0,0.8), 0 2px 5px rgba(0,0,0,0.9);">
+            Manage classes.<br>
+            Track attendance.<br>
+            Stay updated.
+        </p>
+    </div>
+    <div class="login-content" style="z-index: 2;">
+        <div class="wrapper">
+          <div class="title-text">
+            <div class="title login">Login as Student</div>
+            <div class="title signup">Login as Teacher</div>
+          </div>
+          <div class="form-container">
+            
+            {% if student_error %}
+            <div class="error-msg" style="color: #ff6b6b; margin-bottom: 10px; text-align: center; font-size: 14px;">{{ student_error }}</div>
+            {% endif %}
+            {% if teacher_error %}
+            <div class="error-msg" style="color: #ff6b6b; margin-bottom: 10px; text-align: center; font-size: 14px;">{{ teacher_error }}</div>
+            {% endif %}
+
+            <div class="slide-controls">
+              <input type="radio" name="slide" id="login" {% if not active_tab or active_tab == 'student' %}checked{% endif %}>
+              <input type="radio" name="slide" id="signup" {% if active_tab == 'teacher' %}checked{% endif %}>
+              <label for="login" class="slide login">Student</label>
+              <label for="signup" class="slide signup">Teacher</label>
+              <div class="slider-tab"></div>
+            </div>
+            <div class="form-inner">
+              <form method="post" action="{% url 'student_login' %}" class="login">
+                {% csrf_token %}
+                <div class="field">
+                  <input type="text" name="name" placeholder="Student Name" required>
+                </div>
+                <div class="field">
+                  <input type="password" name="roll_number" placeholder="Roll Number (Password)" required>
+                </div>
+                <div class="field btn" style="margin-top: 30px;">
+                  <div class="btn-layer"></div>
+                  <input type="submit" value="Login">
+                </div>
+              </form>
+              
+              <form method="post" action="{% url 'teacher_login' %}" class="signup">
+                {% csrf_token %}
+                <div class="field">
+                  <input type="text" name="teacher_id" placeholder="Teacher ID" required>
+                </div>
+                <div class="field">
+                  <input type="password" name="password" placeholder="Password (Empty if first login)">
+                </div>
+                <div class="pass-link"><a href="{% url 'forgot_password' %}">Forgot password?</a></div>
+                <div class="field btn" style="margin-top: 15px;">
+                  <div class="btn-layer"></div>
+                  <input type="submit" value="Login">
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
