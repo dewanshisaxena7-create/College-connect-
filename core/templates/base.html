@@ -5,13 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>College Connect</title>
     {% load static %}
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{% static 'css/style.css' %}?v=18">
-    <!-- Prevent theme flashing on load -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}?v=301">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        if (localStorage.getItem('theme') === 'dark') {
-            document.documentElement.setAttribute('data-theme', 'dark');
-        }
+        const theme = localStorage.getItem('theme') || 'dark';
+        if (theme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
     </script>
 </head>
 <body>
@@ -20,34 +19,41 @@
     </div>
 
     <nav class="navbar">
-        <div class="nav-container">
-            <a href="/" class="brand" style="display: flex; align-items: center; gap: 10px;">
-                <img src="{% static 'images/logo.png' %}" alt="Logo" style="height: 35px; border-radius: 4px;"> 
-                College Connect
-            </a>
-            <div class="nav-links">
-                <button id="theme-toggle" class="theme-toggle" title="Toggle Dark/Light Mode">🌙</button>
-                {% if request.session.teacher_id or request.session.student_id %}
-                    <div class="user-profile">
-                        <div class="user-avatar" title="{{ request.session.name }}">
-                            {% if teacher %}
-                                {{ teacher.name|slice:":1"|upper }}
-                            {% elif student %}
-                                {{ student.name|slice:":1"|upper }}
-                            {% else %}
-                                👤
-                            {% endif %}
-                        </div>
-                        <a href="{% url 'logout' %}" class="btn-logout">Logout</a>
-                    </div>
-                {% endif %}
+        <a href="{% url 'index' %}" class="nav-brand">
+            <img src="{% static 'images/logo.png' %}" alt="Logo" class="nav-logo">
+            <strong>College Connect</strong>
+        </a>
+        
+        <div style="display: flex; align-items: center; gap: 1.5rem;">
+            <button id="theme-btn" style="background:none; border:none; font-size:1.2rem; cursor:pointer;" title="Toggle Theme">🌓</button>
+            
+            {% if request.session.teacher_id or request.session.student_id %}
+            <div style="display: flex; align-items: center; gap: 10px; background: rgba(0,0,0,0.05); padding: 5px 15px; border-radius: 50px;">
+                <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--primary); color: white; display:flex; align-items:center; justify-content:center; font-weight:800; font-size: 0.75rem;">
+                    {{ request.session.name|slice:":1"|upper }}
+                </div>
+                <a href="{% url 'logout' %}" style="color: var(--danger); font-size: 0.8rem; font-weight: 700; text-decoration: none;">LOGOUT</a>
             </div>
+            {% endif %}
         </div>
     </nav>
+
     <main class="container">
         {% block content %}{% endblock %}
     </main>
-    <script src="{% static 'js/script.js' %}?v=18"></script>
+
+    <script src="{% static 'js/script.js' %}?v=301"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const loader = document.getElementById('global-loader');
+            if (loader) {
+                setTimeout(() => {
+                    loader.style.opacity = '0';
+                    setTimeout(() => loader.style.display = 'none', 500);
+                }, 300);
+            }
+        });
+    </script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>

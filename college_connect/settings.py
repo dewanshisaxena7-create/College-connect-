@@ -6,10 +6,29 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-development-key-do-not-use-in-prod'
 DEBUG = True
 
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "*").split(",")
+
+# CSRF Trusted Origins - Handles dynamic Cloudflare tunnel URLs
 CSRF_TRUSTED_ORIGINS = [
-    "https://hockey-portable-determines-championships.trycloudflare.com"
+    "http://127.0.0.1:8000",
+    "http://localhost:8000"
 ]
+# Add dynamic tunnel URL if provided via environment variable
+CLOUDFLARE_TUNNEL_URL = os.environ.get("CLOUDFLARE_TUNNEL_URL")
+if CLOUDFLARE_TUNNEL_URL:
+    CSRF_TRUSTED_ORIGINS.append(CLOUDFLARE_TUNNEL_URL)
+
+# Secure Proxy Settings for Cloudflare
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+USE_X_FORWARDED_HOST = True
+USE_X_FORWARDED_PORT = True
+
+# Security Settings (Enabled when running via tunnel)
+if CLOUDFLARE_TUNNEL_URL:
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_SSL_REDIRECT = False # Cloudflare handles the redirect
+
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',

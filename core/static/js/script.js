@@ -1,349 +1,279 @@
-// Global variable for Chart.js
-let studentAttendanceChart = null;
-
 // Initialize UI events on load
 document.addEventListener("DOMContentLoaded", () => {
-    // Hide loader
-    const loader = document.getElementById('global-loader');
-    if (loader) {
-        loader.style.opacity = '0';
-        setTimeout(() => loader.style.display = 'none', 500);
-    }
-
     initThemeToggle();
     initClock();
     initTeacherToggles();
 });
 
+let studentAttendanceChart = null;
+
 function initThemeToggle() {
-    const toggleBtn = document.getElementById('theme-toggle');
+    const toggleBtn = document.getElementById('theme-btn');
     if (!toggleBtn) return;
     
-    const currentTheme = localStorage.getItem('theme') || 'light';
-    if (currentTheme === 'dark') {
-        document.documentElement.setAttribute('data-theme', 'dark');
-        toggleBtn.textContent = '☀️';
-    } else {
-        document.documentElement.removeAttribute('data-theme');
-        toggleBtn.textContent = '🌙';
-    }
-
     toggleBtn.addEventListener('click', () => {
-        let theme = localStorage.getItem('theme') || 'light';
-        if (theme === 'light') {
-            document.documentElement.setAttribute('data-theme', 'dark');
-            localStorage.setItem('theme', 'dark');
-            toggleBtn.textContent = '☀️';
-        } else {
-            document.documentElement.removeAttribute('data-theme');
-            localStorage.setItem('theme', 'light');
-            toggleBtn.textContent = '🌙';
-        }
+        const doc = document.documentElement;
+        const currentTheme = doc.getAttribute('data-theme') || 'light';
+        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+        
+        doc.setAttribute('data-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+        window.dispatchEvent(new Event('themeChanged'));
     });
 }
 
 function initClock() {
-    const clockEl = document.getElementById('dynamic-clock');
-    const greetingEl = document.getElementById('dynamic-greeting');
-    if (!clockEl && !greetingEl) return;
+    const timeEl = document.getElementById('clock-time');
+    const dateEl = document.getElementById('clock-date');
+    const greetingEl = document.getElementById('greeting-time');
+    
+    if (!timeEl && !dateEl && !greetingEl) return;
 
     function updateTime() {
         const now = new Date();
-        
-        if (clockEl) {
+        if (timeEl) {
             let hours = now.getHours();
             let minutes = now.getMinutes();
-            let seconds = now.getSeconds();
             let ampm = hours >= 12 ? 'PM' : 'AM';
-            
-            // Analog calculations
-            const hourHand = document.querySelector('.hour-hand');
-            const minuteHand = document.querySelector('.minute-hand');
-            if (hourHand && minuteHand) {
-                let hRotation = (hours % 12) * 30 + (minutes / 2);
-                let mRotation = minutes * 6 + (seconds / 10);
-                hourHand.style.transform = `translateX(-50%) rotate(${hRotation}deg)`;
-                minuteHand.style.transform = `translateX(-50%) rotate(${mRotation}deg)`;
-            }
-
-            hours = hours % 12;
-            hours = hours ? hours : 12;
-            let displayMins = minutes < 10 ? '0' + minutes : minutes;
-            const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-            const dayName = days[now.getDay()];
-            clockEl.textContent = `${hours}:${displayMins} ${ampm} | ${dayName}`;
+            hours = hours % 12 || 12;
+            minutes = minutes < 10 ? '0' + minutes : minutes;
+            timeEl.textContent = `${hours}:${minutes} ${ampm}`;
         }
-
-        const greetingEl = document.getElementById('greeting-time');
-
+        if (dateEl) {
+            const options = { weekday: 'long', month: 'long', day: 'numeric' };
+            dateEl.textContent = now.toLocaleDateString('en-US', { weekday: 'long' });
+        }
         if (greetingEl) {
-            const currentHour = now.getHours();
-            let greeting = "Good Evening";
-            if (currentHour < 12) greeting = "Good Morning";
-            else if (currentHour < 17) greeting = "Good Afternoon";
-            
-            greetingEl.textContent = greeting;
+            const h = now.getHours();
+            let g = h < 12 ? "Good Morning" : h < 17 ? "Good Afternoon" : "Good Evening";
+            let i = h < 17 ? "☀️" : "🌙";
+            greetingEl.innerHTML = `${g} ${i}`;
         }
     }
-    
     updateTime();
-    setInterval(updateTime, 1000);
+    setInterval(updateTime, 60000); // Minutes is enough
 }
 
-
-// Teacher Dash: Toggle Class logic
 function initTeacherToggles() {
     const toggles = document.querySelectorAll(".toggle-class-status");
     toggles.forEach(toggle => {
         toggle.addEventListener("change", function() {
-            const timetableId = this.dataset.id;
-            const isChecked = this.checked;
-            const label = document.getElementById(`status-label-${timetableId}`);
-            const card = this.closest('.class-card');
-            
-            // Visual optimistic update
-            if(isChecked) {
-                label.textContent = "ON";
-                label.className = "status-label status-on";
+            const id = this.dataset.id;
+            const active = this.checked;
+            const label = document.getElementById(`status-label-${id}`);
+            const btn = document.getElementById(`attendance-btn-${id}`);
+            const card = this.closest('.class-item');
+
+            if (active) {
                 card.classList.remove('cancelled');
-                let btn = document.getElementById(`attendance-btn-${timetableId}`);
-                if(btn) btn.style.display = 'block';
+                if (label) { label.innerHTML = "ON"; label.className = "on-label"; }
+                if (btn) btn.style.display = 'block';
             } else {
-                label.textContent = "NO CLASS";
-                label.className = "status-label status-off";
                 card.classList.add('cancelled');
-                let btn = document.getElementById(`attendance-btn-${timetableId}`);
-                if(btn) btn.style.display = 'none';
+                if (label) { label.innerHTML = "OFF"; label.className = "off-label"; }
+                if (btn) btn.style.display = 'none';
             }
 
-            // AJAX request to backend
-            fetch(window.API_TOGGLE_URL + timetableId + '/', {
+            fetch(`/api/toggle_class/${id}/`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': window.CSRF_TOKEN
+                headers: { 
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ is_active: isChecked })
-            })
-            .then(res => res.json())
-            .then(data => {
-                if(!data.success) {
-                    alert("Failed to update class status.");
-                    this.checked = !isChecked; // Revert on failure
-                } else if(isChecked) {
-                     // update attendance link dynamically if re-activated
-                     let btn = document.getElementById(`attendance-btn-${timetableId}`);
-                     if(btn && data.daily_class_id) {
-                         let anchor = btn.querySelector('a');
-                         anchor.href = `/teacher/attendance/${data.daily_class_id}/`;
-                     }
-                }
-            })
-            .catch(err => {
-                console.error("Error toggling class:", err);
-                alert("Network error. Please try again.");
-                this.checked = !isChecked; // Revert
+                body: JSON.stringify({ is_active: active })
             });
         });
-        
-        // Setup initial label classes
-        const id = toggle.dataset.id;
-        const label = document.getElementById(`status-label-${id}`);
-        if(label) {
-            if(toggle.checked) { label.className = "status-label status-on"; }
-            else { label.className = "status-label status-off"; toggle.closest('.class-card').classList.add('cancelled'); }
-        }
     });
 }
 
-// Student Dash: AJAX Polling
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Student Dash AJAX Logic
 function fetchStudentData() {
     if(!window.API_STUDENT_DATA_URL) return;
-
     fetch(window.API_STUDENT_DATA_URL)
         .then(res => res.json())
         .then(data => {
-            renderStudentClasses(data.classes);
-            renderStudentNotifications(data.notifications);
-            renderTodayAttendance(data.today_attendance);
-            renderTotalAttendance(data.attendance_history);
-        })
-        .catch(err => console.error("Error fetching student data:", err));
+            renderClasses(data.classes);
+            renderNotifications(data.notifications);
+            renderAttendance(data.attendance_history, data.today_attendance);
+        });
 }
 
-function renderStudentClasses(classes) {
+function renderClasses(classes) {
     const list = document.getElementById('student-classes');
     if(!list) return;
-    
     if(classes.length === 0) {
-        list.innerHTML = `<div class="empty-state">No classes scheduled for today. Enjoy your day!</div>`;
+        list.innerHTML = `<div class="stat-card" style="padding:40px; text-align:center; opacity:0.6;">No active classes right now.</div>`;
         return;
     }
-    
     list.innerHTML = classes.map(c => `
-        <div class="class-card ${c.is_active ? '' : 'cancelled'}">
+        <div class="class-item ${c.is_active ? '' : 'cancelled'}" style="position:relative; padding:2rem;">
+            <div style="position:absolute; top:20px; right:20px; display:flex; gap:10px; align-items:center;">
+                <span style="background:var(--primary); color:white; padding:2px 8px; border-radius:4px; font-size:0.65rem; font-weight:800;">TODAY</span>
+                <span class="${c.is_active ? 'on-label' : 'off-label'}">${c.ui_status}</span>
+            </div>
             <div class="class-info">
-                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                    <h4>${c.subject_name}</h4>
-                    <span style="border: 1px solid var(--text-muted); padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; color: var(--text-muted);">Section ${c.target_section}</span>
-                </div>
-                <p class="meta">
-                    <span class="teacher">Prof. ${c.teacher_name}</span>
-                    <span class="time">${c.time}</span>
-                    <span class="room">Room ${c.room_number}</span>
+                <h2 style="font-size:1.8rem; font-weight:800; margin-bottom:15px;">${c.subject_name} 
+                    <small style="font-size:0.8rem; opacity:0.6; font-weight:400; margin-left:10px;">Sec ${c.target_section}</small>
+                </h2>
+                <p style="font-size:0.95rem; display:flex; gap:20px; color:var(--text-secondary);">
+                    <span>⏰ ${c.time}</span>
+                    <span>📍 Room ${c.room_number}</span>
+                    <span>👤 ${c.teacher_name}</span>
                 </p>
             </div>
-            <div class="class-status" style="display: ${c.is_active ? 'block' : 'none'};">
-                <span class="status-label status-on">
-                    Class is ON
-                </span>
-            </div>
-            <div class="class-status" style="display: ${!c.is_active ? 'block' : 'none'};">
-                <span class="status-label status-off">
-                    Class Cancelled
-                </span>
-            </div>
         </div>
     `).join('');
 }
 
-function renderTodayAttendance(history) {
-    const list = document.getElementById('today-attendance-list');
-    if(!list) return;
-    
-    if(!history || history.length === 0) {
-        list.innerHTML = `<div class="empty-state" style="color: var(--text-muted);">No attendance records for today.</div>`;
-        return;
-    }
-    
-    list.innerHTML = history.map(h => `
-        <div class="class-card" style="padding: 15px; margin-bottom: 10px; cursor: default;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <h4 style="margin: 0;">${h.subject}</h4>
-                    <span style="font-size: 12px; color: var(--text-muted);">${h.date}</span>
-                </div>
-                <span class="status-label ${h.status === 'Present' ? 'status-on' : 'status-off'}" style="font-size: 13px; font-weight: bold; border: 1px solid currentColor; padding: 4px 10px; border-radius: 4px;">
-                    ${h.status.toUpperCase()}
-                </span>
-            </div>
-        </div>
-    `).join('');
-}
-
-function renderTotalAttendance(history) {
-    const list = document.getElementById('attendance-history-list');
-    const textList = document.getElementById('attendance-history-text');
-    const canvas = document.getElementById('totalAttendanceChart');
-    if(!list || !textList || !canvas) return;
-    
-    if(!history || history.length === 0) {
-        textList.innerHTML = `<div class="empty-state" style="color: var(--text-muted);">No overall attendance records yet.</div>`;
-        canvas.style.display = 'none';
-        return;
-    }
-    
-    canvas.style.display = 'block';
-    
-    // Wrap labels by splitting on spaces for better X-axis rendering
-    const labels = history.map(h => {
-        let words = h.subject.split(' ');
-        if (words.length > 3) return [words.slice(0,2).join(' '), words.slice(2).join(' ')];
-        return words;
-    });
-    
-    const attendedData = history.map(h => h.attended);
-    const totalData = history.map(h => h.total);
-    
-    if (studentAttendanceChart) {
-        studentAttendanceChart.data.labels = labels;
-        studentAttendanceChart.data.datasets[0].data = attendedData;
-        studentAttendanceChart.data.datasets[1].data = totalData;
-        studentAttendanceChart.update();
-    } else {
-        const ctx = canvas.getContext('2d');
-        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-        const colorText = isDark ? '#f8fafc' : '#0f172a';
-        
-        studentAttendanceChart = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: labels,
-                datasets: [
-                    {
-                        label: 'Classes Attended',
-                        data: attendedData,
-                        backgroundColor: 'rgba(52, 211, 153, 0.8)',
-                    },
-                    {
-                        label: 'Total Conducted',
-                        data: totalData,
-                        backgroundColor: 'rgba(96, 165, 250, 0.4)',
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: { beginAtZero: true, ticks: { stepSize: 1, color: colorText } },
-                    x: { ticks: { color: colorText, maxRotation: 0, minRotation: 0, autoSkip: false } }
-                },
-                plugins: {
-                    legend: { labels: { color: colorText } }
-                }
-            }
-        });
-    }
-
-    textList.innerHTML = history.map(h => `
-        <p style="font-size: 15px; margin-bottom: 8px; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
-            <span style="color: var(--primary); font-size: 1.2em;">•</span> 
-            You attended <strong>${h.attended} out of ${h.total}</strong> ${h.subject} classes.
-        </p>
-    `).join('');
-}
-
-function renderStudentNotifications(notifications) {
+function renderNotifications(notifs) {
     const list = document.getElementById('student-notifications');
     if(!list) return;
-    
-    if(notifications.length === 0) {
-        list.innerHTML = `<div class="empty-state">No new notifications.</div>`;
+    if(notifs.length === 0) {
+        list.innerHTML = `<p style="opacity:0.5; padding:10px;">No new alerts.</p>`;
         return;
     }
-    
-    list.innerHTML = notifications.map(n => `
-        <div class="notification-card">
-            <p>${n.message}</p>
-            <span class="time">${n.time}</span>
+    list.innerHTML = notifs.map(n => `
+        <div class="modern-notif">
+            <p class="notif-text"><strong>${n.subject}</strong>: ${n.message}</p>
+            <span class="notif-time">${n.time}</span>
         </div>
     `).join('');
 }
 
-
-// Unified Login Slide Logic
-document.addEventListener("DOMContentLoaded", () => {
-    const loginText = document.querySelector(".title-text .login");
-    const loginForm = document.querySelector("form.login");
-    const loginBtn = document.querySelector("label.login");
-    const signupBtn = document.querySelector("label.signup");
-    
-    if (signupBtn && loginBtn && loginForm && loginText) {
-        signupBtn.onclick = (() => {
-            loginForm.style.marginLeft = "-50%";
-            loginText.style.marginLeft = "-50%";
-        });
-        loginBtn.onclick = (() => {
-            loginForm.style.marginLeft = "0%";
-            loginText.style.marginLeft = "0%";
-        });
-        
-        // Initial setup based on radio buttons
-        const signupRadio = document.getElementById("signup");
-        if (signupRadio && signupRadio.checked) {
-            loginForm.style.marginLeft = "-50%";
-            loginText.style.marginLeft = "-50%";
-        }
+function renderAttendance(history, today) {
+    const list = document.getElementById('today-attendance-list');
+    if(list) {
+        if(today.length === 0) list.innerHTML = `<p style="opacity:0.5;">Not marked yet.</p>`;
+        else list.innerHTML = today.map(t => `<div class="stat-card" style="margin-bottom:10px; padding:15px; display:flex; justify-content:space-between;"><span>${t.subject}</span> <strong>${t.status}</strong></div>`).join('');
     }
+
+    // Chart logic (Fixes Double Graph)
+    const ctx = document.getElementById('totalAttendanceChart');
+    if(!ctx || history.length === 0) return;
+
+    ctx.style.display = 'block';
+    const loader = document.getElementById('chart-loader');
+    if(loader) loader.style.display = 'none';
+
+    const labels = history.map(h => h.subject);
+    const attendedData = history.map(h => h.attended);
+    const totalData = history.map(h => h.total);
+
+    if(studentAttendanceChart) studentAttendanceChart.destroy();
+    
+    studentAttendanceChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Total Sessions',
+                    data: totalData,
+                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    borderColor: 'rgba(255, 255, 255, 0.1)',
+                    borderWidth: 1,
+                    borderRadius: 8,
+                    barPercentage: 0.6
+                },
+                {
+                    label: 'Attended',
+                    data: attendedData,
+                    backgroundColor: 'linear-gradient(180deg, #3b82f6 0%, #2563eb 100%)',
+                    backgroundColor: '#3b82f6', 
+                    borderRadius: 8,
+                    barPercentage: 0.6
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            layout: { padding: { bottom: 20 } },
+            scales: {
+                y: { 
+                    beginAtZero: true, 
+                    ticks: { color: 'rgba(255,255,255,0.5)', stepSize: 1, font: { size: 10 } },
+                    grid: { color: 'rgba(255,255,255,0.03)' }
+                },
+                x: { 
+                    ticks: { 
+                        color: 'rgba(255,255,255,0.7)', 
+                        maxRotation: 30, 
+                        minRotation: 30,
+                        font: { size: 10, weight: '600' }
+                    },
+                    grid: { display: false }
+                }
+            },
+            plugins: { 
+                legend: { 
+                    display: true, 
+                    position: 'top', 
+                    align: 'end',
+                    labels: { 
+                        color: '#fff', 
+                        boxWidth: 8, 
+                        usePointStyle: true,
+                        pointStyle: 'circle',
+                        font: { size: 11, weight: '700' } 
+                    } 
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                    titleFont: { size: 14, weight: '800' },
+                    padding: 12,
+                    cornerRadius: 12,
+                    displayColors: false
+                }
+            }
+        }
+    });
+
+    // Add Text Breakdown below
+    const historyText = document.getElementById('attendance-history-text');
+    if(historyText) {
+        historyText.innerHTML = history.map(h => `
+            <div class="stat-card" style="margin-bottom: 10px; padding: 15px; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <strong style="display: block; font-size: 1rem;">${h.subject}</strong>
+                    <span style="font-size: 0.8rem; color: var(--text-secondary);">${h.status}</span>
+                </div>
+                <div style="text-align: right;">
+                    <span style="font-size: 1.2rem; font-weight: 800; color: var(--primary);">${Math.round((h.attended/h.total)*100)}%</span>
+                </div>
+            </div>
+        `).join('');
+    }
+}
+
+function getChartColor() {
+    return document.documentElement.getAttribute('data-theme') === 'dark' ? '#94a3b8' : '#64748b';
+}
+
+// Global Sync Starter
+function startStudentSync() {
+    if(!window.API_STUDENT_DATA_URL) return;
+    fetchStudentData();
+    setInterval(fetchStudentData, 5000);
+}
+
+// Ensure initialization
+document.addEventListener("DOMContentLoaded", () => {
+    // Small delay to ensure template variables are picked up
+    setTimeout(startStudentSync, 500);
 });

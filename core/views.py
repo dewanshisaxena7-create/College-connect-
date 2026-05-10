@@ -104,20 +104,28 @@ def teacher_setup_view(request):
     if 'setup_teacher_id' not in request.session:
         return redirect('teacher_login')
         
+    teacher = Teacher.objects.get(id=request.session['setup_teacher_id'])
     error_msg = None
+    
     if request.method == 'POST':
-        email = request.POST.get('email')
+        new_username = request.POST.get('new_username', '').strip()
+        email = request.POST.get('email', '').strip()
         new_password = request.POST.get('new_password')
         confirm_password = request.POST.get('confirm_password')
         
         if new_password and new_password == confirm_password:
-            if email and Teacher.objects.filter(email=email).exclude(id=request.session['setup_teacher_id']).exists():
+            # Check if Username is already taken
+            if new_username and Teacher.objects.filter(teacher_id__iexact=new_username).exclude(id=teacher.id).exists():
+                error_msg = "This username is already taken. Please choose another one."
+            # Check if Email is already taken
+            elif email and Teacher.objects.filter(email__iexact=email).exclude(id=teacher.id).exists():
                 error_msg = "This email is already registered to another teacher."
             else:
-                teacher = Teacher.objects.get(id=request.session['setup_teacher_id'])
                 teacher.password = make_password(new_password)
                 if email:
                     teacher.email = email
+                if new_username:
+                    teacher.teacher_id = new_username
                 teacher.is_first_login = False
                 teacher.save()
                 
@@ -128,7 +136,7 @@ def teacher_setup_view(request):
             error_msg = "Passwords do not match."
             
     days = ClassSchedule.DAYS_OF_WEEK
-    return render(request, 'teacher_setup.html', {'error': error_msg, 'days': days})
+    return render(request, 'teacher_setup.html', {'error': error_msg, 'days': days, 'teacher': teacher})
 
 def forgot_password_view(request):
     error_msg = None
@@ -254,7 +262,7 @@ def teacher_dashboard(request):
     total_today = schedules.count()
     all_today_data = active_schedules_data + history_schedules_data
     conducted_today = sum(1 for item in all_today_data if item['daily_status'].status)
-    cancelled_today = sum(1 for item in all_today_data if not item['daily_status'].status)
+    cancelled_today = sum(1 for item in all_today_data if not item['daily_status'].status and item['daily_status'].is_started)
     
     week_ago = today_date - timezone.timedelta(days=7)
     weekly_statuses = DailyClassStatus.objects.filter(
@@ -332,6 +340,7 @@ def api_toggle_class(request, schedule_id):
             new_status = not daily_status.status
             
         daily_status.status = new_status
+        daily_status.is_started = True
         daily_status.save()
         
         # Create a notification
@@ -391,6 +400,17 @@ def take_attendance_view(request, daily_class_id):
 def view_attendance_report(request):
     teacher = Teacher.objects.get(id=request.session['teacher_id'])
     
+    # All subjects ever taught by this teacher
+    subjects = ClassSchedule.objects.filter(teacher=teacher).values_list('subject', flat=True).distinct()
+    
+    subject_filter = request.GET.get('subject')
+    
+    if not subject_filter:
+        return render(request, 'view_attendance.html', {
+            'subjects': subjects,
+            'selected_subject': None
+        })
+        
     def extract_roll_number_int(student):
         try:
             return int(student.roll_number.split('-')[-1])
@@ -403,11 +423,10 @@ def view_attendance_report(request):
     
     # Calculate stats
     report_data = []
-    # Only consider classes taught by this teacher
-    teacher_classes = DailyClassStatus.objects.filter(schedule__teacher=teacher)
+    # Only consider classes taught by this teacher for the SPECIFIC subject
+    teacher_classes = DailyClassStatus.objects.filter(schedule__teacher=teacher, schedule__subject=subject_filter)
     
     for s in students:
-        # Total classes involving this student (i.e. records established)
         total_records = StudentAttendance.objects.filter(student=s, daily_class__in=teacher_classes).count()
         attended = StudentAttendance.objects.filter(student=s, daily_class__in=teacher_classes, is_present=True).count()
         
@@ -418,7 +437,9 @@ def view_attendance_report(request):
         })
         
     return render(request, 'view_attendance.html', {
-        'report_data': report_data
+        'report_data': report_data,
+        'selected_subject': subject_filter,
+        'subjects': subjects
     })
 
 @student_required
@@ -428,23 +449,19 @@ def api_student_data(request):
     today_name = timezone.localtime().strftime('%A')
     today_date = timezone.localtime().date()
     
-    # Determine section from roll number (e.g., IC-2K23-01 -> 50 = A, 51 -> 102 = B)
-    try:
-        roll_num_int = int(student.roll_number.split('-')[-1])
-        real_section = 'A' if roll_num_int <= 50 else 'B'
-    except:
-        real_section = student.section # fallback
+    # Use the student's official section from the database
+    real_section = student.section
 
     # Active timetables for today for this specific section
     schedules = ClassSchedule.objects.filter(day=today_name, target_section=real_section).order_by('start_time')
     
     classes_data = []
     for s in schedules:
-        # Hide classes that have completely ended
-        if timezone.localtime().time() > s.end_time:
-            msg = f"{s.subject} class has ended."
-            if not Notification.objects.filter(schedule=s, message=msg).exists():
-                Notification.objects.create(schedule=s, message=msg)
+        # Hide classes only after 30 mins past end_time
+        end_datetime = timezone.localtime().replace(hour=s.end_time.hour, minute=s.end_time.minute)
+        grace_time = end_datetime + timezone.timedelta(minutes=30)
+        
+        if timezone.localtime() > grace_time:
             continue
             
         daily_status, _ = DailyClassStatus.objects.get_or_create(
@@ -452,6 +469,14 @@ def api_student_data(request):
         )
         has_self_marked = StudentAttendance.objects.filter(student=student, daily_class=daily_status, is_present=True).exists()
         
+        # Determine explicit UI status
+        if daily_status.status:
+            ui_status = "ON"
+        elif daily_status.is_started:
+            ui_status = "CANCELLED"
+        else:
+            ui_status = "WAITING"
+
         classes_data.append({
             'daily_class_id': daily_status.id,
             'subject_name': s.subject,
@@ -459,6 +484,7 @@ def api_student_data(request):
             'time': f"{s.start_time.strftime('%H:%M')} - {s.end_time.strftime('%H:%M')}",
             'room_number': s.room_number,
             'is_active': daily_status.status,
+            'ui_status': ui_status,
             'target_section': s.target_section
         })
         
@@ -485,8 +511,24 @@ def api_student_data(request):
         notif_data.append({
             'message': n.message,
             'time': time_str,
-            'subject': n.schedule.subject if n.schedule else 'General'
+            'subject': n.schedule.subject if n.schedule else 'General',
+            'is_upcoming': False
         })
+        
+    # Dynamically inject upcoming class if starting within the next 60 minutes
+    now = timezone.localtime()
+    for s in schedules:
+        class_datetime = timezone.localtime().replace(hour=s.start_time.hour, minute=s.start_time.minute, second=0, microsecond=0)
+        diff_mins = (class_datetime - now).total_seconds() / 60.0
+        # If class starts within 60 mins, AND it hasn't ended yet
+        if 0 < diff_mins <= 60:
+            notif_data.insert(0, {
+                'message': f"Next class '{s.subject}' starts in {int(diff_mins)} minutes in Room {s.room_number}.",
+                'time': 'Upcoming',
+                'subject': s.subject,
+                'is_upcoming': True
+            })
+            break # Only show the absolute next one
         
     # Calculate Student's Personal Attendance Stats
     total_classes = StudentAttendance.objects.filter(student=student).count()
@@ -584,3 +626,52 @@ def api_delete_schedule(request, schedule_id):
         schedule.delete()
         return redirect('teacher_dashboard')
     return redirect('teacher_dashboard')
+
+
+@teacher_required
+def api_export_attendance(request):
+    import csv
+    from django.http import HttpResponse
+    teacher = Teacher.objects.get(id=request.session['teacher_id'])
+    subject_filter = request.GET.get('subject')
+    if not subject_filter:
+        return redirect('view_attendance_report')
+    
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="attendance_{subject_filter}.csv"'
+    writer = csv.writer(response)
+    writer.writerow(['Roll Number', 'Name', 'Section', 'Classes Attended', 'Total Conducted', 'Percentage'])
+    
+    students = list(Student.objects.all())
+    def extract_roll_number_int(student):
+        try:
+            return int(student.roll_number.split('-')[-1])
+        except:
+            return 9999
+    students.sort(key=lambda s: (s.section, extract_roll_number_int(s)))
+    teacher_classes = DailyClassStatus.objects.filter(schedule__teacher=teacher, schedule__subject=subject_filter)
+    for s in students:
+        total = StudentAttendance.objects.filter(student=s, daily_class__in=teacher_classes).count()
+        attended = StudentAttendance.objects.filter(student=s, daily_class__in=teacher_classes, is_present=True).count()
+        pct = f'{int((attended/total)*100)}%' if total > 0 else 'N/A'
+        writer.writerow([s.roll_number, s.name, s.section, attended, total, pct])
+    return response
+
+
+
+@teacher_required
+def api_edit_schedule(request, schedule_id):
+    if request.method == 'POST':
+        teacher = Teacher.objects.get(id=request.session['teacher_id'])
+        schedule = get_object_or_404(ClassSchedule, id=schedule_id, teacher=teacher)
+        
+        schedule.subject = request.POST.get('edit_subject', schedule.subject)
+        schedule.room_number = request.POST.get('edit_room_number', schedule.room_number)
+        schedule.day = request.POST.get('edit_day', schedule.day)
+        schedule.start_time = request.POST.get('edit_start_time', schedule.start_time)
+        schedule.end_time = request.POST.get('edit_end_time', schedule.end_time)
+        schedule.target_section = request.POST.get('edit_target_section', schedule.target_section)
+        schedule.save()
+        
+    return redirect('teacher_dashboard')
+

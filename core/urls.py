@@ -23,5 +23,7 @@ urlpatterns = [
     path('api/clear_schedules/', views.api_clear_schedules, name='api_clear_schedules'),
     path('api/clear_today/', views.api_clear_today, name='api_clear_today'),
     path('api/delete_schedule/<int:schedule_id>/', views.api_delete_schedule, name='api_delete_schedule'),
+    path('api/edit_schedule/<int:schedule_id>/', views.api_edit_schedule, name='api_edit_schedule'),
     path('teacher/attendance-report/', views.view_attendance_report, name='view_attendance_report'),
+    path('teacher/attendance-report/export/', views.api_export_attendance, name='api_export_attendance'),
 ]

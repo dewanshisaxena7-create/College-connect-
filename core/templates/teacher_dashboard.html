@@ -1,247 +1,220 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block content %}
-<div class="dashboard-header" style="align-items: flex-start;">
+<div class="dashboard-header">
     <div class="header-info">
         <h1>Teacher Dashboard</h1>
-        <div style="display: flex; align-items: center; gap: 15px; margin-top: 10px;">
-            <p style="margin: 0;"><span id="greeting-time">Welcome</span>, Prof. {{ teacher.name }}! You can add your schedule from here.</p>
-            <button class="btn-primary" style="padding: 6px 12px; font-size: 13px;" onclick="document.getElementById('add-schedule-modal').style.display='flex'">+ Add Schedule</button>
-        </div>
+        <p style="font-size: 1rem; opacity: 0.8; margin-top: 5px;">Good morning, <strong>Prof. {{ teacher.name }}</strong>! You can add your schedule from here
+            <button onclick="document.getElementById('add-schedule-modal').style.display='flex'" class="btn-primary"
+                style="margin-left: 10px; padding: 6px 15px; font-size: 0.8rem;">+ Add New Class</button>
+        </p>
     </div>
-    <div class="header-actions" style="display: flex; flex-direction: column; align-items: flex-end; gap: 10px;">
-        <div class="time-greeting-block">
-            <div id="analog-clock" class="analog-clock">
-                <div class="hand hour-hand"></div>
-                <div class="hand minute-hand"></div>
-                <div class="center-dot"></div>
-            </div>
-            <div id="dynamic-clock" class="dynamic-clock"></div>
-        </div>
-        <a href="{% url 'view_attendance_report' %}" class="btn-secondary" style="text-decoration: none; padding: 6px 12px; border-radius: 6px; background: rgba(5, 150, 105, 0.1); color: var(--success); border: 1px solid var(--success); font-size: 13px;">View Attendance Record</a>
+
+    <div class="clock-card" id="dynamic-clock-container">
+        <span style="font-size: 1.5rem;">🕒</span>
+        <span class="time" id="clock-time">00:00:00</span>
+        <span class="date" id="clock-date">...</span>
     </div>
 </div>
 
-<style>
-    .reminder-banner {
-        background: rgba(30, 64, 175, 0.15);
-        border-left: 4px solid var(--primary);
-        padding: 15px 20px;
-        border-radius: 8px;
-        margin-top: 20px;
-        display: none;
-        color: var(--text-main);
-        animation: slideDown 0.3s ease-out;
-        font-size: 15px;
-    }
-    @keyframes slideDown { from { transform: translateY(-10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-</style>
-
-<div id="mca-reminder-banner" class="reminder-banner">
-    <strong>Notice:</strong> Prof. {{ teacher.name }}, please make your today schedule for MCA(VI) sem.
-</div>
-
-<div class="stats-grid">
+<!-- Analytics Cards (Symmetric Row) -->
+<div class="stats-row">
     <div class="stat-card">
-        <h4>Total Classes Today</h4>
-        <div class="value">{{ analytics.total }}</div>
+        <span class="label">Total Classes Today</span>
+        <span class="value">{{ analytics.total }}</span>
     </div>
     <div class="stat-card">
-        <h4>Conducted (ON)</h4>
-        <div class="value" style="color: var(--success);">{{ analytics.conducted }}</div>
+        <span class="label">Conducted (ON)</span>
+        <span class="value" style="color: var(--success);">{{ analytics.conducted }}</span>
     </div>
     <div class="stat-card">
-        <h4>Cancelled (OFF)</h4>
-        <div class="value" style="color: var(--danger);">{{ analytics.cancelled }}</div>
+        <span class="label">Cancelled (OFF)</span>
+        <span class="value" style="color: var(--danger);">{{ analytics.cancelled }}</span>
     </div>
     <div class="stat-card">
-        <h4>Weekly Summary</h4>
-        <div class="value" style="font-size: 18px; display: flex; gap: 10px; align-items: center;">
-            <span style="color: var(--success);">{{ analytics.weekly_on }} ON</span>
-            <span style="color: var(--text-muted);">|</span>
+        <span class="label">Weekly Summary</span>
+        <span class="value" style="font-size: 1.2rem; margin-top: 10px;">
+            <span style="color: var(--success);">{{ analytics.weekly_on }} ON</span> |
             <span style="color: var(--danger);">{{ analytics.weekly_off }} OFF</span>
-        </div>
+        </span>
     </div>
 </div>
 
-    <div class="classes-section">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-            <h3>Today's Active Classes</h3>
-            <form method="post" action="{% url 'api_clear_today' %}" onsubmit="return confirm('Are you sure you want to delete today\'s specific schedule?');">
+<!-- Header Actions -->
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <h3 style="font-size: 1.4rem; font-weight: 800; color: var(--primary);">Today's Active Classes</h3>
+    <a href="{% url 'view_attendance_report' %}" class="btn-primary"
+        style="text-decoration: none; padding: 8px 18px; font-size: 0.8rem; background: rgba(16, 185, 129, 0.1); color: var(--success); border: 1px solid var(--success);">View
+        Attendance Record</a>
+</div>
+
+<div id="teacher-classes" class="class-list" style="max-width: 1000px; margin: 0 auto; margin-bottom: 4rem;">
+    {% if active_schedules_data %}
+    {% for item in active_schedules_data %}
+    <div class="class-item {% if not item.daily_status.status %}cancelled{% endif %}"
+        style="position: relative; padding: 2.2rem; margin-bottom: 1.5rem;">
+        <div style="position: absolute; top: 20px; right: 20px; display: flex; align-items: center; gap: 15px;">
+            <span
+                style="background: var(--primary); color: white; padding: 3px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800;">ACTIVE</span>
+            <label class="switch">
+                <input type="checkbox" class="toggle-class-status" data-id="{{ item.schedule.id }}" {% if item.daily_status.status %}checked{% endif %}>
+                <span class="slider round"></span>
+            </label>
+        </div>
+        <div class="class-info">
+            <h2 style="font-size: 1.8rem; font-weight: 800; margin-bottom: 12px; letter-spacing: -0.5px;">{{ item.schedule.subject }}
+                <small style="font-size: 0.85rem; opacity: 0.5; font-weight: 500; margin-left: 10px;">{{ item.schedule.target_section }}</small>
+            </h2>
+            <p style="font-size: 1rem; color: var(--text-secondary);">⏰ {{ item.schedule.start_time|time:"h:i A" }} - {{ item.schedule.end_time|time:"h:i A" }} | 📍 Room {{ item.schedule.room_number }}</p>
+            <div style="margin-top: 25px;" id="attendance-btn-{{ item.schedule.id }}">
+                <a href="{% url 'take_attendance' item.daily_status.id %}" class="btn-primary"
+                    style="text-decoration: none; padding: 12px 30px; background: {% if item.daily_status.status %}var(--primary){% else %}rgba(255,255,255,0.05){% endif %}; border: 1px solid {% if item.daily_status.status %}var(--primary){% else %}var(--card-border){% endif %};">📋
+                    MARK ATTENDANCE</a>
+            </div>
+        </div>
+        <div style="position: absolute; bottom: 20px; right: 20px; display: flex; gap: 12px; align-items: center;">
+            <button
+                onclick="openEditModal('{{ item.schedule.id }}','{{ item.schedule.subject }}','{{ item.schedule.room_number }}','{{ item.schedule.start_time|time:'H:i' }}','{{ item.schedule.end_time|time:'H:i' }}','{{ item.schedule.target_section }}','{{ item.schedule.day }}')"
+                style="background: rgba(59, 130, 246, 0.1); border: 2px solid var(--primary); color: var(--primary); font-size: 0.7rem; font-weight: 800; padding: 5px 12px; border-radius: 6px;">EDIT</button>
+            <form method="post" action="{% url 'api_delete_schedule' item.schedule.id %}" style="display:inline;">
                 {% csrf_token %}
-                <button type="submit" style="background: rgba(220, 38, 38, 0.1); color: var(--danger); border: 1px solid rgba(220, 38, 38, 0.4); padding: 6px 12px; border-radius: 5px; cursor: pointer; font-size: 13px;">Clear Today's Active Classes</button>
+                <button type="submit" class="btn-delete">🗑️</button>
             </form>
         </div>
-        {% if active_schedules_data %}
-            <div class="timetable-list">
-                {% for item in active_schedules_data %}
-                <div class="class-card">
-                    <div class="class-info">
-                        <h4>{{ item.schedule.subject }} 
-                            <span class="today-badge">TODAY</span>
-                            <span class="today-badge" style="background: var(--primary); color: white;">Sec {{ item.schedule.target_section }}</span>
-                        </h4>
-                        <p class="meta">
-                            <span class="time">{{ item.schedule.start_time|time:"h:i A" }} - {{ item.schedule.end_time|time:"h:i A" }}</span>
-                            <span class="room">Room {{ item.schedule.room_number }}</span>
-                        </p>
-                        <div id="attendance-btn-{{ item.schedule.id }}" style="margin-top: 10px; display: {% if item.daily_status.status %}block{% else %}none{% endif %};">
-                            <a href="{% url 'take_attendance' item.daily_status.id %}" class="btn-primary" style="padding: 8px 15px; font-size: 14px; text-decoration: none; display: inline-block; border-radius: 8px;">📋 Take Attendance</a>
-                        </div>
-                    </div>
-                    <div class="class-actions" style="display: flex; flex-direction: column; align-items: flex-end; gap: 10px;">
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <label class="switch">
-                                <input type="checkbox" class="toggle-class-status" data-id="{{ item.schedule.id }}" {% if item.daily_status.status %}checked{% endif %}>
-                                <span class="slider round"></span>
-                            </label>
-                            <span class="status-label" id="status-label-{{ item.schedule.id }}">
-                                {% if item.daily_status.status %}ON{% else %}CANCELLED{% endif %}
-                            </span>
-                        </div>
-                        <form method="post" action="{% url 'api_delete_schedule' item.schedule.id %}" onsubmit="return confirm('Delete this class?');">
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="stat-card" style="padding: 60px; text-align: center; border-style: dashed; opacity: 0.5;">
+        <p>No classes scheduled for today.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Weekly Scheduled Classes Section -->
+<div class="side-column" style="margin-top: 3rem; border-top: 2px solid var(--card-border); padding-top: 2.5rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+        <h3 style="font-size: 1.4rem; font-weight: 800; color: var(--text-primary); margin: 0;">Weekly Scheduled Classes
+        </h3>
+        <span style="font-size: 0.8rem; opacity: 0.5;">Manage your routine</span>
+    </div>
+
+    {% if all_schedules %}
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem;">
+        {% for s in all_schedules %}
+        <div class="stat-card"
+            style="padding: 1.5rem; display: flex; flex-direction: column; justify-content: space-between; min-height: 180px;">
+            <div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <span
+                        style="font-size: 0.7rem; background: var(--primary); color: white; padding: 3px 10px; border-radius: 6px; font-weight: 800; text-transform: uppercase;">{{ s.day }}</span>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <button
+                            onclick="openEditModal('{{ s.id }}','{{ s.subject }}','{{ s.room_number }}','{{ s.start_time|time:'H:i' }}','{{ s.end_time|time:'H:i' }}','{{ s.target_section }}','{{ s.day }}')"
+                            style="background: rgba(59, 130, 246, 0.1); border: none; color: var(--primary); font-size: 0.75rem; font-weight: 700; cursor: pointer; padding: 5px 12px; border-radius: 6px;">EDIT</button>
+                        <form method="post" action="{% url 'api_delete_schedule' s.id %}"
+                            onsubmit="return confirm('Delete this weekly schedule permanently?');"
+                            style="display: inline;">
                             {% csrf_token %}
-                            <button type="submit" style="background: none; border: none; color: var(--danger); cursor: pointer; font-size: 13px; text-decoration: underline;">🗑️ Delete</button>
+                            <button type="submit" class="btn-delete" style="font-size: 1.1rem; padding: 0;">🗑️</button>
                         </form>
                     </div>
                 </div>
-                {% endfor %}
+                <h4
+                    style="font-size: 1.3rem; font-weight: 800; line-height: 1.2; color: var(--text-primary); margin: 0;">
+                    {{ s.subject }}</h4>
+                <p style="font-size: 0.75rem; opacity: 0.5; font-weight: 700; margin-top: 5px;">SECTION {{ s.target_section }}</p>
             </div>
-        {% else %}
-            <div class="empty-state">No active classes for today remaining.</div>
-        {% endif %}
-    </div>
 
-    <div class="classes-section">
-        <h3>Today's Class History</h3>
-        {% if history_schedules_data %}
-            <div class="timetable-list">
-                {% for item in history_schedules_data %}
-                <div class="class-card" style="opacity: 0.7;">
-                    <div class="class-info">
-                        <h4>{{ item.schedule.subject }} 
-                            <span class="today-badge" style="background: var(--text-muted);">ENDED</span>
-                            <span class="today-badge" style="background: var(--primary); color: white;">Sec {{ item.schedule.target_section }}</span>
-                        </h4>
-                        <p class="meta">
-                            <span class="time">{{ item.schedule.start_time|time:"h:i A" }} - {{ item.schedule.end_time|time:"h:i A" }}</span>
-                            <span class="room">Room {{ item.schedule.room_number }}</span>
-                        </p>
-                    </div>
-                    <div class="class-actions" style="display: flex; flex-direction: column; align-items: flex-end; gap: 10px;">
-                        <form method="post" action="{% url 'api_delete_schedule' item.schedule.id %}" onsubmit="return confirm('Delete this class history?');">
-                            {% csrf_token %}
-                            <button type="submit" style="background: none; border: none; color: var(--danger); cursor: pointer; font-size: 13px; text-decoration: underline;">🗑️ Delete</button>
-                        </form>
-                    </div>
-                </div>
-                {% endfor %}
+            <div
+                style="border-top: 1px solid var(--card-border); padding-top: 15px; display: flex; justify-content: space-between; align-items: center; color: var(--text-secondary); font-size: 0.9rem; font-weight: 600;">
+                <span>⏰ {{ s.start_time|time:"h:i A" }}</span>
+                <span>📍 Room {{ s.room_number }}</span>
             </div>
-        {% else %}
-            <div class="empty-state" style="color: var(--text-muted);">No historical classes for today yet.</div>
-        {% endif %}
-    </div>
-</div>
-
-    </div>
-</div>
-
-<!-- Modal for adding schedule -->
-<div id="add-schedule-modal" class="modal-overlay" style="display:none;">
-    <div class="modal-card glass-panel">
-        <div class="modal-header">
-            <h3>Add New Class</h3>
-            <button class="close-btn" onclick="document.getElementById('add-schedule-modal').style.display='none'">×</button>
         </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="stat-card" style="padding: 40px; text-align: center; border-style: dashed; opacity: 0.5;">
+        <p>No weekly classes scheduled yet. Create one above!</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Add/Edit Modal -->
+<div id="add-schedule-modal" class="modal-overlay"
+    style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 2000; justify-content: center; align-items: center;">
+    <div class="stat-card"
+        style="width: 500px; position: relative; text-align: left; padding: 30px; background: var(--bg-color);">
+        <button onclick="document.getElementById('add-schedule-modal').style.display='none'"
+            style="position: absolute; top: 20px; right: 20px; background: none; border: none; font-size: 1.5rem; color: var(--text-secondary); cursor: pointer;">×</button>
+        <h3
+            style="margin-bottom: 25px; font-size: 1.5rem; border-bottom: 2px solid var(--primary); padding-bottom: 10px; display: inline-block;">
+            NEW CLASS SCHEDULE</h3>
         <form method="post" action="{% url 'add_schedule' %}">
             {% csrf_token %}
-            <div class="form-group">
-                <label style="color:var(--text-main); font-size:14px;">Subject</label>
-                <select name="subject" required>
+            <div class="field">
+                <label>SUBJECT</label>
+                <select name="subject" required
+                    style="width:100%; padding:14px; border-radius:12px; background: var(--card-bg); color: var(--text-primary); border: 1px solid var(--card-border);">
                     <option value="Cloud Computing">Cloud Computing</option>
+                    <option value="Operating Systems">Operating Systems</option>
                     <option value="System Analysis and Design">System Analysis and Design</option>
-                    <option value="Operating System">Operating System</option>
                     <option value="Human Computer and Interaction">Human Computer and Interaction</option>
+                    <option value="Android Programming lab">Android Programming lab</option>
                 </select>
             </div>
-            <div class="form-group">
-                <label style="color:white; font-size:14px;">Room Number</label>
-                <input type="text" name="room_number" required>
-            </div>
-            <div class="form-group">
-                <label style="color:var(--text-main); font-size:14px;">Select Day</label>
-                <select name="day" required>
-                    {% for day in days %}
-                        <option value="{{ day.0 }}" {% if day.0 == today %}selected{% endif %}>{{ day.1 }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="form-group" style="display:flex; gap:10px;">
-                <div style="flex:1">
-                    <label style="color:var(--text-main); font-size:14px;">Start Time</label>
-                    <input type="text" name="start_time" class="md-timepicker" required>
+            <div style="display: flex; gap: 15px;">
+                <div class="field" style="flex:1">
+                    <label>DAY OF WEEK</label>
+                    <select name="day" required
+                        style="width:100%; padding:14px; border-radius:12px; background: var(--card-bg); color: var(--text-primary); border: 1px solid var(--card-border);">
+                        {% for day_val, day_name in days %}
+                        <option value="{{ day_val }}" {% if day_val == today %}selected{% endif %}>{{ day_name }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
-                <div style="flex:1">
-                    <label style="color:var(--text-main); font-size:14px;">End Time</label>
-                    <input type="text" name="end_time" class="md-timepicker" required>
+                <div class="field" style="flex:1">
+                    <label>SECTION</label>
+                    <select name="target_section" required
+                        style="width:100%; padding:14px; border-radius:12px; background: var(--card-bg); color: var(--text-primary); border: 1px solid var(--card-border);">
+                        <option value="A">Section A</option>
+                        <option value="B">Section B</option>
+                    </select>
                 </div>
             </div>
-            <div class="form-group">
-                <label style="color:white; font-size:14px;">Target Section</label>
-                <select name="target_section" required>
-                    <option value="A">Section A</option>
-                    <option value="B">Section B</option>
-                </select>
+            <div style="display: flex; gap: 15px;">
+                <div class="field" style="flex:1">
+                    <label>START TIME</label>
+                    <input type="text" name="start_time" class="md-timepicker" required placeholder="Select Time"
+                        style="width:100%; padding:14px; border-radius:12px; border: 1px solid var(--card-border); background: var(--card-bg); color: var(--text-primary);">
+                </div>
+                <div class="field" style="flex:1">
+                    <label>END TIME</label>
+                    <input type="text" name="end_time" class="md-timepicker" required placeholder="Select Time"
+                        style="width:100%; padding:14px; border-radius:12px; border: 1px solid var(--card-border); background: var(--card-bg); color: var(--text-primary);">
+                </div>
             </div>
-            <button type="submit" class="btn-primary btn-block" style="margin-top:15px;">Save Schedule</button>
+            <div class="field">
+                <label>ROOM NUMBER</label>
+                <input type="text" name="room_number" required placeholder="e.g. 101"
+                    style="width:100%; padding:14px; border-radius:12px; border: 1px solid var(--card-border); background: var(--card-bg); color: var(--text-primary);">
+            </div>
+            <button type="submit" class="btn-primary" style="margin-top: 20px; width: 100%; padding: 15px;">CREATE
+                SCHEDULE</button>
         </form>
     </div>
 </div>
 
-<style>
-.modal-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; }
-.modal-card { width: 400px; padding: 20px; background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border-radius: 12px; border: 1px solid rgba(255,255,255,0.2); }
-.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-.close-btn { background: none; border: none; color: var(--text-main); font-size: 24px; cursor: pointer; }
-.glass-panel form select, .glass-panel form input { width: 100%; padding: 10px; margin-top: 5px; border-radius: 8px; border: 1px solid var(--card-border); background: var(--card-bg); color: var(--text-main); }
-.header-actions { display: flex; align-items: center; }
-</style>
-
-{% endblock %}
-
-{% block extra_js %}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/dmuy/MDTimePicker@v2.0.0/dist/mdtimepicker.css">
 <script src="https://cdn.jsdelivr.net/gh/dmuy/MDTimePicker@v2.0.0/dist/mdtimepicker.js"></script>
 <script>
-    window.API_TOGGLE_URL = "/api/toggle_class/";
-    window.CSRF_TOKEN = document.querySelector('[name=csrfmiddlewaretoken]').value;
-
     document.addEventListener("DOMContentLoaded", () => {
-        mdtimepicker('.md-timepicker', { theme: document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light', format: 'hh:mm', is24hour: true });
-
-        const classTimes = [
-            {% for item in active_schedules_data %}
-            {
-                subject: "{{ item.schedule.subject }}",
-                time_str: "{{ item.schedule.start_time|time:'H:i' }}"
-            }{% if not forloop.last %},{% endif %}
-            {% endfor %}
-        ];
-
-        function checkReminders() {
-            const now = new Date();
-            const currentHour = now.getHours();
-            
-            // Show MCA(VI) notification only during the 8 AM hour (08:00 - 08:59)
-            if (currentHour === 8) {
-                document.getElementById('mca-reminder-banner').style.display = 'block';
-            } else {
-                document.getElementById('mca-reminder-banner').style.display = 'none';
-            }
-        }
-
-        checkReminders();
-        setInterval(checkReminders, 60000);
+        mdtimepicker('.md-timepicker', {
+            theme: 'indigo',
+            format: 'hh:mm',
+            is24hour: false
+        });
     });
 </script>
 {% endblock %}

@@ -1,71 +1,97 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block content %}
-<div class="unified-login-wrapper">
-    <div class="login-hero-text" style="font-family: 'Century', 'Century Gothic', serif; z-index: 2;">
-        <h1 style="font-size: 2.4rem; margin-bottom: 15px; font-weight: 700; color: #ffffff; line-height: 1.2; letter-spacing: 0px; text-shadow: 0 4px 15px rgba(0,0,0,0.8), 0 2px 5px rgba(0,0,0,0.9);">
-            Welcome to IIPS<br>College Connect!
-        </h1>
-        <p style="font-size: 1.2rem; color: #f8fafc; font-weight: 400; line-height: 1.8; opacity: 0.95; letter-spacing: 0.5px; text-shadow: 0 3px 10px rgba(0,0,0,0.8), 0 2px 5px rgba(0,0,0,0.9);">
-            Manage classes.<br>
-            Track attendance.<br>
-            Stay updated.
-        </p>
-    </div>
-    <div class="login-content" style="z-index: 2;">
-        <div class="wrapper">
-          <div class="title-text">
-            <div class="title login">Login as Student</div>
-            <div class="title signup">Login as Teacher</div>
-          </div>
-          <div class="form-container">
-            
-            {% if student_error %}
-            <div class="error-msg" style="color: #ff6b6b; margin-bottom: 10px; text-align: center; font-size: 14px;">{{ student_error }}</div>
-            {% endif %}
-            {% if teacher_error %}
-            <div class="error-msg" style="color: #ff6b6b; margin-bottom: 10px; text-align: center; font-size: 14px;">{{ teacher_error }}</div>
+<div class="login-full-page">
+    <div class="login-bg"></div>
+
+    <div class="split-wrapper">
+        <!-- Left Branding side -->
+        <div class="branding-section">
+            <div class="logo-container">
+                <img src="{% static 'images/logo.png' %}" alt="IIPS Logo">
+            </div>
+            <h1>Welcome to<br>IIPS college connect!</h1>
+            <p class="tagline">manage classes • track attendance • stay updated</p>
+        </div>
+
+        <!-- Right Form side -->
+        <div class="form-section">
+            <div class="login-card">
+                <h2>Sign In</h2>
+                
+                <div class="form-box">
+                    <p style="font-size: 0.75rem; font-weight: 800; color: var(--text-secondary); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Sign in as</p>
+            <!-- Errors -->
+            {% if student_error or teacher_error %}
+            <div style="background: rgba(239, 68, 68, 0.1); color: var(--danger); padding: 12px; border-radius: 12px; margin-bottom: 20px; font-size: 0.85rem; font-weight: 600;">
+                {{ student_error }}{{ teacher_error }}
+            </div>
             {% endif %}
 
+            <!-- Toggles (Homogenous) -->
             <div class="slide-controls">
-              <input type="radio" name="slide" id="login" {% if not active_tab or active_tab == 'student' %}checked{% endif %}>
-              <input type="radio" name="slide" id="signup" {% if active_tab == 'teacher' %}checked{% endif %}>
-              <label for="login" class="slide login">Student</label>
-              <label for="signup" class="slide signup">Teacher</label>
-              <div class="slider-tab"></div>
+                <input type="radio" name="slide" id="login" {% if not active_tab or active_tab == 'student' %}checked{% endif %}>
+                <input type="radio" name="slide" id="teacher" {% if active_tab == 'teacher' %}checked{% endif %}>
+                <label for="login" class="slide login" onclick="slideForm(0)">Student</label>
+                <label for="teacher" class="slide teacher" onclick="slideForm(-100)">Teacher</label>
+                <div class="slider-tab"></div>
             </div>
-            <div class="form-inner">
-              <form method="post" action="{% url 'student_login' %}" class="login">
-                {% csrf_token %}
-                <div class="field">
-                  <input type="text" name="name" placeholder="Student Name" required>
+
+            <div class="form-inner-container" style="overflow: hidden; width: 100%;">
+                <div id="form-inner" class="form-inner" style="{% if active_tab == 'teacher' %}margin-left: -100%;{% else %}margin-left: 0;{% endif %}">
+                    <!-- Student Form -->
+                    <form method="post" action="{% url 'student_login' %}" id="student-form">
+                        {% csrf_token %}
+                        <div class="field">
+                            <label>Full Name</label>
+                            <input type="text" name="name" placeholder="Enter your full name" required autocomplete="name">
+                        </div>
+                        <div class="field" style="margin-bottom: 30px;">
+                            <label>Roll Number</label>
+                            <input type="password" name="roll_number" placeholder="e.g. IC-2K23-01" required>
+                        </div>
+                        <button type="submit" class="btn-primary">Access Student Dashboard</button>
+                    </form>
+
+                    <!-- Teacher Form -->
+                    <form method="post" action="{% url 'teacher_login' %}" id="teacher-form">
+                        {% csrf_token %}
+                        <div class="field">
+                            <label>Teacher ID</label>
+                            <input type="text" name="teacher_id" placeholder="Enter your ID" required>
+                        </div>
+                        <div class="field">
+                            <label>Password</label>
+                            <input type="password" name="password" placeholder="••••••••" required>
+                        </div>
+                        <div style="text-align: right; margin-bottom: 20px;">
+                            <a href="{% url 'forgot_password' %}" style="font-size: 0.8rem; color: var(--primary); font-weight: 700; text-decoration: none;">Forgot Password?</a>
+                        </div>
+                        <button type="submit" class="btn-primary">Access Teacher Dashboard</button>
+                    </form>
                 </div>
-                <div class="field">
-                  <input type="password" name="roll_number" placeholder="Roll Number (Password)" required>
-                </div>
-                <div class="field btn" style="margin-top: 30px;">
-                  <div class="btn-layer"></div>
-                  <input type="submit" value="Login">
-                </div>
-              </form>
-              
-              <form method="post" action="{% url 'teacher_login' %}" class="signup">
-                {% csrf_token %}
-                <div class="field">
-                  <input type="text" name="teacher_id" placeholder="Teacher ID" required>
-                </div>
-                <div class="field">
-                  <input type="password" name="password" placeholder="Password (Empty if first login)">
-                </div>
-                <div class="pass-link"><a href="{% url 'forgot_password' %}">Forgot password?</a></div>
-                <div class="field btn" style="margin-top: 15px;">
-                  <div class="btn-layer"></div>
-                  <input type="submit" value="Login">
-                </div>
-              </form>
             </div>
-          </div>
         </div>
     </div>
 </div>
+
+<script>
+    function slideForm(percent) {
+        document.getElementById('form-inner').style.marginLeft = percent + '%';
+    }
+    
+    // Initial sync
+    window.addEventListener('load', () => {
+        const isTeacher = document.getElementById('teacher').checked;
+        if (isTeacher) slideForm(-100);
+    });
+</script>
+
+<style>
+    /* Ensure the split scroll works perfectly */
+    .form-inner-container { border-radius: 12px; }
+    #login:checked ~ .slider-tab { left: 0%; }
+    #teacher:checked ~ .slider-tab { left: 50%; }
+</style>
 {% endblock %}

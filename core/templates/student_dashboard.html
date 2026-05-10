@@ -1,86 +1,84 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block content %}
-<div class="dashboard-header" style="align-items: flex-start;">
+<div class="dashboard-header">
     <div class="header-info">
         <h1>Student Dashboard</h1>
-        <p><span id="greeting-time">Welcome</span>, {{ student.name }}!</p>
-    </div>
-    <div class="time-greeting-block">
-        <div id="analog-clock" class="analog-clock">
-            <div class="hand hour-hand"></div>
-            <div class="hand minute-hand"></div>
-            <div class="center-dot"></div>
-        </div>
-        <div id="dynamic-clock" class="dynamic-clock"></div>
-    </div>
-</div>
-
-<div class="dashboard-grid">
-    <div class="classes-section">
-        <h3>Today's Active Classes</h3>
-        <div class="timetable-list" id="student-classes">
-            <!-- Populated via AJAX -->
-            <div class="loading-state">Loading your schedule...</div>
-        </div>
-    </div>
-
-    <div class="notifications-section">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-            <h3 style="margin: 0;">Recent Notifications</h3>
-            <button onclick="clearAllNotifications()" style="background: rgba(220, 38, 38, 0.1); color: var(--danger); border: 1px solid rgba(220, 38, 38, 0.4); padding: 6px 12px; border-radius: 5px; cursor: pointer; font-size: 13px;">Clear All</button>
-        </div>
-        <div class="notification-list" id="student-notifications">
-            <!-- Populated via AJAX -->
-            <div class="loading-state">Loading notifications...</div>
-        </div>
-    </div>
-</div>
-
-<div class="dashboard-grid" style="margin-top: 30px;">
-    <div class="classes-section">
-        <h3>My Today's Attendance</h3>
-        <div class="timetable-list" id="today-attendance-list">
-            <div class="loading-state">Loading today's attendance...</div>
-        </div>
+        <p>Good morning, <span style="font-weight: 700;">{{ student.name|upper }}</span>!</p>
     </div>
     
-    <div class="classes-section">
-        <h3>My Total Attendance</h3>
-        <div id="attendance-history-list" style="height: 300px; position: relative; margin-top: 20px;">
-            <canvas id="totalAttendanceChart" style="display: none;"></canvas>
-        </div>
-        <div id="attendance-history-text" style="margin-top: 50px;"></div>
+    <div class="clock-card" id="dynamic-clock-container">
+        <span style="font-size: 1.5rem;">🕒</span>
+        <span class="time" id="clock-time">00:00:00</span>
+        <span class="date" id="clock-date">...</span>
     </div>
 </div>
 
+<div class="dash-layout">
+    <div class="main-column">
+        <h3 style="font-size: 1.4rem; font-weight: 800; color: var(--primary);">Today's Active Classes</h3>
+        <div id="student-classes" class="class-list">
+            <!-- Populated via AJAX in script.js -->
+            <div class="stat-card" style="padding: 40px; text-align: center;">
+                <p style="color: var(--text-secondary);">Syncing with schedule...</p>
+            </div>
+        </div>
+
+        <div style="margin-top: 3rem;">
+            <h3 style="font-size: 1.25rem; font-weight: 700;">My Today's Attendance</h3>
+            <div id="today-attendance-list">
+                <!-- Populated via AJAX in script.js -->
+                <p style="opacity: 0.5;">Loading updates...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Side Panel (Notifications) -->
+    <div class="side-column">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <h3 style="margin: 0; font-size: 1.25rem;">Recent Notifications</h3>
+            <button onclick="clearAllNotifications()" style="background: rgba(239, 68, 68, 0.1); color: var(--danger); border: none; padding: 4px 12px; border-radius: 6px; font-size: 0.75rem; cursor: pointer; font-weight: 700;">Clear All</button>
+        </div>
+        
+        <div id="student-notifications" style="max-height: 400px; overflow-y: auto; padding-right: 5px;">
+            <!-- Populated via AJAX in script.js -->
+        </div>
+
+        <div style="margin-top: 3.5rem;">
+            <h3 style="font-size: 1.25rem; font-weight: 800; color: var(--text-primary); margin-bottom: 1.5rem;">Overall Attendance Graph</h3>
+            <div id="attendance-history-list" style="height: 300px; position: relative; background: var(--card-bg); padding: 20px; border-radius: 16px; border: 1px solid var(--card-border); box-shadow: var(--shadow-glass);">
+                <canvas id="totalAttendanceChart" style="display: none;"></canvas>
+                <div id="chart-loader" style="text-align: center; padding-top: 100px; color: var(--text-secondary);">Analyzing...</div>
+            </div>
+            
+            <h3 style="font-size: 1.1rem; font-weight: 700; margin-top: 2rem; margin-bottom: 1rem;">Subject Breakdown</h3>
+            <div id="attendance-history-text">
+                <!-- Populated via script.js -->
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     window.API_STUDENT_DATA_URL = "/api/student_data/";
     
     function clearAllNotifications() {
         if(!confirm("Are you sure you want to clear all notifications?")) return;
-        
-        // Grab token from a dummy form 
-        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
-        
         fetch("{% url 'api_clear_notifications' %}", {
             method: "POST",
-            headers: {
-                "X-CSRFToken": csrfToken || "{{ csrf_token }}" // fallback if missing
-            }
+            headers: { "X-CSRFToken": "{{ csrf_token }}" }
         }).then(() => fetchStudentData());
     }
 
-    // Start polling when student dash loads
-    document.addEventListener("DOMContentLoaded", () => {
-        if(typeof fetchStudentData === 'function') {
-            fetchStudentData();
-            // Poll every 10 seconds for real-time updates
-            setInterval(fetchStudentData, 10000); 
+    // Theme sync listener
+    window.addEventListener('themeChanged', () => {
+        if (typeof studentAttendanceChart !== 'undefined' && studentAttendanceChart) {
+            studentAttendanceChart.options.scales.x.ticks.color = getChartColor();
+            studentAttendanceChart.options.scales.y.ticks.color = getChartColor();
+            studentAttendanceChart.update();
         }
     });
 </script>

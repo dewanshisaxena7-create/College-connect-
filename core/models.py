@@ -57,7 +57,8 @@ class Notification(models.Model):
 class DailyClassStatus(models.Model):
     schedule = models.ForeignKey(ClassSchedule, on_delete=models.CASCADE, related_name='daily_statuses')
     date = models.DateField(default=timezone.now)
-    status = models.BooleanField(default=True) # True = Conducted/Active, False = Cancelled
+    status = models.BooleanField(default=False) # False = Waiting / Cancelled, True = Active
+    is_started = models.BooleanField(default=False) # False = Never turned on (WAITING)
 
     class Meta:
         unique_together = ('schedule', 'date')

@@ -14,8 +14,12 @@
             {% csrf_token %}
             <div style="display: flex; gap: 20px; margin-bottom: 20px;">
                 <div class="form-group" style="flex: 1;">
+                    <label for="new_username">New Username (Login ID)</label>
+                    <input type="text" name="new_username" id="new_username" value="{{ teacher.teacher_id }}" required>
+                </div>
+                <div class="form-group" style="flex: 1;">
                     <label for="email">Email Address</label>
-                    <input type="email" name="email" id="email" required>
+                    <input type="email" name="email" id="email" required placeholder="For password recovery">
                 </div>
             </div>
             <div style="display: flex; gap: 20px;">
