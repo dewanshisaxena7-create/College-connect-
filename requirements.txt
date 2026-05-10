@@ -6,5 +6,5 @@ whitenoise
 dj-database-url
 tzdata
 pytz
-psycopg2-binary==2.9.9
+psycopg[binary]
 dj-database-url==2.1.0
