@@ -11,7 +11,8 @@ ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "*").split(",")
 # CSRF Trusted Origins - Handles dynamic Cloudflare tunnel URLs
 CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1:8000",
-    "http://localhost:8000"
+    "http://localhost:8000",
+    "https://*.onrender.com"
 ]
 # Add dynamic tunnel URL if provided via environment variable
 CLOUDFLARE_TUNNEL_URL = os.environ.get("CLOUDFLARE_TUNNEL_URL")
