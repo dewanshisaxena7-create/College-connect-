@@ -70,7 +70,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'college_connect.wsgi.application'
 
-DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://devanshi:nyXWgJ4XrewdN1ooRrft0IuZ8y0lr6MT@dpg-d80ej10g4nts73f6dmjg-a.singapore-postgres.render.com/my_project_db_fwlx")
+DATABASE_URL = os.environ.get("DATABASE_URL", "postgres://devanshi:nyXWgJ4XrewdN1ooRrft0IuZ8y0lr6MT@dpg-d80ej10g4nts73f6dmjg-a.singapore-postgres.render.com/my_project_db_fwlx")
 
 DATABASES = {
     'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600, conn_health_checks=True, ssl_require=True)
