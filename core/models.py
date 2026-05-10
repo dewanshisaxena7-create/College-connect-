@@ -8,6 +8,7 @@ class Teacher(models.Model):
     email = models.EmailField(unique=True, null=True, blank=True)
     otp = models.CharField(max_length=6, null=True, blank=True)
     is_first_login = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True)
 
     def __str__(self):
         return self.name
@@ -17,6 +18,8 @@ class Student(models.Model):
     name = models.CharField(max_length=100)
     password = models.CharField(max_length=255)
     section = models.CharField(max_length=1, choices=[('A', 'A'), ('B', 'B')], default='A')
+    email = models.EmailField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
 
     def __str__(self):
         return f"{self.name} ({self.roll_number})"

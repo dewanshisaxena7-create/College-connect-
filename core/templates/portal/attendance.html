@@ -1,0 +1,50 @@
+{% extends 'portal/base_portal.html' %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Attendance Records</h1>
+    <a href="{% url 'portal_attendance_export' %}" class="btn btn-primary-glass">
+        <i class="fa-solid fa-download"></i> Export to CSV
+    </a>
+</div>
+
+<div class="glass-panel">
+    <div class="table-container">
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Student Name</th>
+                    <th>Roll Number</th>
+                    <th>Section</th>
+                    <th>Subject</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for record in records %}
+                <tr>
+                    <td>{{ record.daily_class.date|date:"Y-m-d" }}</td>
+                    <td>{{ record.student.name }}</td>
+                    <td>{{ record.student.roll_number }}</td>
+                    <td>{{ record.student.section }}</td>
+                    <td>
+                        <div>{{ record.daily_class.schedule.subject }}</div>
+                        <div class="small text-muted">{{ record.daily_class.schedule.teacher.name }}</div>
+                    </td>
+                    <td>
+                        {% if record.is_present %}
+                            <span class="badge-active">Present</span>
+                        {% else %}
+                            <span class="badge-inactive">Absent</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="text-center text-muted">No attendance records found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

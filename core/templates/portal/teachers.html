@@ -1,0 +1,129 @@
+{% extends 'portal/base_portal.html' %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Manage Teachers</h1>
+    <button class="btn btn-primary-glass" data-bs-toggle="modal" data-bs-target="#addTeacherModal">
+        <i class="fa-solid fa-plus"></i> Add Teacher
+    </button>
+</div>
+
+<div class="glass-panel">
+    <div class="table-container">
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th>Teacher ID</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for teacher in teachers %}
+                <tr>
+                    <td>{{ teacher.teacher_id }}</td>
+                    <td>{{ teacher.name }}</td>
+                    <td>{{ teacher.email|default:"-" }}</td>
+                    <td>
+                        {% if teacher.is_active %}
+                            <span class="badge-active">Active</span>
+                        {% else %}
+                            <span class="badge-inactive">Inactive</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary border-0" data-bs-toggle="modal" data-bs-target="#editTeacherModal{{ teacher.id }}">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                        </button>
+                        <form method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this teacher?');">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="delete">
+                            <input type="hidden" name="id" value="{{ teacher.id }}">
+                            <button type="submit" class="btn btn-sm btn-outline-danger border-0">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+
+                <!-- Edit Modal -->
+                <div class="modal fade" id="editTeacherModal{{ teacher.id }}" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content glass-panel">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Edit Teacher: {{ teacher.name }}</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <form method="POST">
+                                {% csrf_token %}
+                                <div class="modal-body">
+                                    <input type="hidden" name="action" value="edit">
+                                    <input type="hidden" name="id" value="{{ teacher.id }}">
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">Full Name</label>
+                                        <input type="text" name="name" class="form-control" value="{{ teacher.name }}" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Email</label>
+                                        <input type="email" name="email" class="form-control" value="{{ teacher.email|default:'' }}">
+                                    </div>
+                                    <div class="mb-3 form-check">
+                                        <input type="checkbox" class="form-check-input" name="is_active" id="activeT{{ teacher.id }}" {% if teacher.is_active %}checked{% endif %}>
+                                        <label class="form-check-label" for="activeT{{ teacher.id }}">Active Status</label>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                    <button type="submit" class="btn btn-primary-glass">Save changes</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <tr><td colspan="5" class="text-center text-muted">No teachers found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Add Modal -->
+<div class="modal fade" id="addTeacherModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content glass-panel">
+            <div class="modal-header">
+                <h5 class="modal-title">Add New Teacher</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <input type="hidden" name="action" value="add">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Teacher ID</label>
+                        <input type="text" name="teacher_id" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Full Name</label>
+                        <input type="text" name="name" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" name="email" class="form-control">
+                        <div class="form-text text-muted">A verification email/OTP will be required on their first login.</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary-glass">Add Teacher</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

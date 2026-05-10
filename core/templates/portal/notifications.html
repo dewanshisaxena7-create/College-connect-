@@ -1,0 +1,51 @@
+{% extends 'portal/base_portal.html' %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="page-header">
+            <h1 class="page-title">Broadcast Notifications</h1>
+        </div>
+
+        <div class="glass-panel p-4 mb-4">
+            <form method="POST">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label class="form-label">Target Audience</label>
+                    <select name="target" class="form-select" required>
+                        <option value="all">Everyone (Students & Teachers)</option>
+                        <option value="students">All Students</option>
+                        <option value="teachers">All Teachers</option>
+                        <option value="section_a">Section A</option>
+                        <option value="section_b">Section B</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Message</label>
+                    <textarea name="message" class="form-control" rows="4" required placeholder="Type your announcement here..."></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary-glass">
+                    <i class="fa-solid fa-paper-plane me-2"></i> Send Broadcast
+                </button>
+            </form>
+        </div>
+
+        <div class="glass-panel p-4">
+            <h4 class="mb-4">Recent Broadcasts</h4>
+            <div class="d-flex flex-column gap-3">
+                {% for note in notifications %}
+                <div class="p-3 rounded" style="background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border);">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="badge bg-primary bg-opacity-25 text-primary border border-primary border-opacity-25">Broadcast</span>
+                        <small class="text-muted">{{ note.timestamp|date:"M d, Y h:i a" }}</small>
+                    </div>
+                    <div>{{ note.message }}</div>
+                </div>
+                {% empty %}
+                <div class="text-center text-muted py-4">No notifications have been sent yet.</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

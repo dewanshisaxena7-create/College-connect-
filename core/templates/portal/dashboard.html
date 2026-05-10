@@ -1,0 +1,99 @@
+{% extends 'portal/base_portal.html' %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Dashboard Overview</h1>
+    <div class="text-muted">{{ today|date:"l, F j, Y" }}</div>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card glass-panel">
+        <div class="stat-icon"><i class="fa-solid fa-user-graduate"></i></div>
+        <div class="stat-details">
+            <h3>Total Students</h3>
+            <p>{{ total_students }}</p>
+        </div>
+    </div>
+    <div class="stat-card glass-panel">
+        <div class="stat-icon"><i class="fa-solid fa-chalkboard-user"></i></div>
+        <div class="stat-details">
+            <h3>Total Teachers</h3>
+            <p>{{ total_teachers }}</p>
+        </div>
+    </div>
+    <div class="stat-card glass-panel">
+        <div class="stat-icon"><i class="fa-solid fa-book-open"></i></div>
+        <div class="stat-details">
+            <h3>Active Classes (Today)</h3>
+            <p>{{ active_classes_today }}</p>
+        </div>
+    </div>
+    <div class="stat-card glass-panel">
+        <div class="stat-icon" style="color: var(--danger); background: rgba(239, 68, 68, 0.2);"><i class="fa-solid fa-ban"></i></div>
+        <div class="stat-details">
+            <h3>Cancelled (Today)</h3>
+            <p>{{ cancelled_classes_today }}</p>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="glass-panel p-4 h-100">
+            <h4 class="mb-4">Recent Attendance Logs</h4>
+            <div class="table-responsive">
+                <table class="custom-table">
+                    <thead>
+                        <tr>
+                            <th>Student</th>
+                            <th>Subject</th>
+                            <th>Date</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for att in recent_attendance %}
+                        <tr>
+                            <td>{{ att.student.name }}</td>
+                            <td>{{ att.daily_class.schedule.subject }}</td>
+                            <td>{{ att.daily_class.date|date:"M d, Y" }}</td>
+                            <td>
+                                {% if att.is_present %}
+                                    <span class="badge-active">Present</span>
+                                {% else %}
+                                    <span class="badge-inactive">Absent</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="text-center text-muted">No recent attendance records.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="mt-3 text-end">
+                <a href="{% url 'portal_attendance' %}" class="text-primary text-decoration-none">View All <i class="fa-solid fa-arrow-right"></i></a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="glass-panel p-4 h-100">
+            <h4 class="mb-4">Recent Announcements</h4>
+            <div class="d-flex flex-column gap-3">
+                {% for note in recent_notifications %}
+                <div class="p-3 rounded" style="background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border);">
+                    <div class="small text-muted mb-1">{{ note.timestamp|date:"M d, h:i a" }}</div>
+                    <div>{{ note.message }}</div>
+                </div>
+                {% empty %}
+                <div class="text-center text-muted py-4">No recent notifications.</div>
+                {% endfor %}
+            </div>
+            <div class="mt-3 text-end">
+                <a href="{% url 'portal_notifications' %}" class="text-primary text-decoration-none">Manage <i class="fa-solid fa-arrow-right"></i></a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
