@@ -3,7 +3,7 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = 'django-insecure-development-key-do-not-use-in-prod'
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-development-key-do-not-use-in-prod')
 DEBUG = True
 
 ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "*").split(",")
