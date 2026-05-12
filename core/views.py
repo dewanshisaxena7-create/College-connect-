@@ -88,8 +88,21 @@ def teacher_login_view(request):
         try:
             teacher = Teacher.objects.get(teacher_id__iexact=teacher_id)
             if teacher.is_first_login:
-                request.session['setup_teacher_id'] = teacher.id
-                return redirect('teacher_setup')
+                if not teacher.email:
+                    error_msg = "Please contact the administrator to add an email address to your account before logging in."
+                else:
+                    # Generate 4-digit OTP
+                    otp = get_random_string(length=4, allowed_chars='0123456789')
+                    teacher.otp = otp
+                    teacher.save()
+                    
+                    # Send Email
+                    subject = 'College Connect - Account Setup Verification'
+                    message = f'Hello {teacher.name},\n\nWelcome to College Connect!\nYour OTP to verify your account and set up your password is {otp}.\nPlease use this to complete your setup.'
+                    send_mail(subject, message, None, [teacher.email], fail_silently=False)
+                    
+                    request.session['reset_teacher_id'] = teacher.id
+                    return redirect('verify_otp')
             else:
                 if check_password(password, teacher.password):
                     request.session['teacher_id'] = teacher.id
@@ -170,11 +183,13 @@ def verify_otp_view(request):
     error_msg = None
     success_msg = None
     teacher_id_val = ""
+    is_first_login = False
     
     if 'reset_teacher_id' in request.session:
         try:
             tea = Teacher.objects.get(id=request.session['reset_teacher_id'])
             teacher_id_val = tea.teacher_id
+            is_first_login = tea.is_first_login
         except Teacher.DoesNotExist:
             pass
 
@@ -190,10 +205,15 @@ def verify_otp_view(request):
                 if new_password and new_password == confirm_password:
                     teacher.password = make_password(new_password)
                     teacher.otp = None
+                    if teacher.is_first_login:
+                        teacher.is_first_login = False
+                        success_msg_text = "Account setup complete! You can now log in."
+                    else:
+                        success_msg_text = "Password reset successfully! You can now log in."
                     teacher.save()
                     if 'reset_teacher_id' in request.session:
                         del request.session['reset_teacher_id']
-                    return render(request, 'forgot_password.html', {'success': "Password reset successfully! You can now log in."})
+                    return render(request, 'forgot_password.html', {'success': success_msg_text})
                 else:
                     error_msg = "Passwords do not match."
                     teacher_id_val = teacher_id
@@ -204,7 +224,7 @@ def verify_otp_view(request):
             error_msg = "Invalid Teacher ID."
             teacher_id_val = teacher_id
             
-    return render(request, 'verify_otp.html', {'error': error_msg, 'teacher_id_val': teacher_id_val})
+    return render(request, 'verify_otp.html', {'error': error_msg, 'teacher_id_val': teacher_id_val, 'is_first_login': is_first_login})
 
 @teacher_required
 def change_password_view(request):

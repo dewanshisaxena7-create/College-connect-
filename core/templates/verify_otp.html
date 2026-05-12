@@ -4,8 +4,8 @@
 <div class="login-wrapper">
     <div class="login-card">
         <a href="{% url 'forgot_password' %}" style="color: white; text-decoration: none; font-size: 14px; opacity: 0.7; margin-bottom: 10px; display: inline-block;">← Back</a>
-        <h2>Verify OTP</h2>
-        <p class="subtitle">Enter the 4-digit OTP sent to your email to reset your password</p>
+        <h2>{% if is_first_login %}Verify Account Setup{% else %}Verify OTP{% endif %}</h2>
+        <p class="subtitle">{% if is_first_login %}Enter the 4-digit OTP sent to your email to verify your identity and securely set your password.{% else %}Enter the 4-digit OTP sent to your email to reset your password.{% endif %}</p>
         
         {% if error %}
             <div class="error-msg" style="color: #ff6b6b; margin-bottom: 15px; background: rgba(255,107,107,0.1); padding: 10px; border-radius: 5px;">{{ error }}</div>
@@ -29,7 +29,7 @@
                 <label for="confirm_password">Confirm Password</label>
                 <input type="password" name="confirm_password" id="confirm_password" required>
             </div>
-            <button type="submit" class="btn-primary btn-block">Verify and Reset Password</button>
+            <button type="submit" class="btn-primary btn-block">{% if is_first_login %}Verify and Set Password{% else %}Verify and Reset Password{% endif %}</button>
         </form>
     </div>
 </div>
