@@ -62,8 +62,8 @@
                             <input type="text" name="teacher_id" placeholder="Enter your ID" required>
                         </div>
                         <div class="field">
-                            <label>Password</label>
-                            <input type="password" name="password" placeholder="••••••••" required>
+                            <label>Password <span style="font-weight:normal; font-size:0.75rem; color:var(--text-secondary);">(Leave blank if first login)</span></label>
+                            <input type="password" name="password" placeholder="••••••••">
                         </div>
                         <div style="text-align: right; margin-bottom: 20px;">
                             <a href="{% url 'forgot_password' %}" style="font-size: 0.8rem; color: var(--primary); font-weight: 700; text-decoration: none;">Forgot Password?</a>
